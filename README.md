@@ -1,1 +1,1 @@
-# twshop-external-bot
+# self-hosted-connector
