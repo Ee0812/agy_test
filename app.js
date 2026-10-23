@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Analytics State
     let analyticsData = loadAnalytics();
+    let currentHistoryFilter = 'today';
 
     // DOM Elements - Dashboard Navigation
     const dashNavBtns = document.querySelectorAll('.dash-nav-btn');
@@ -86,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startPauseText = document.getElementById('start-pause-text');
     const playIcon = document.getElementById('play-icon');
     const pauseIcon = document.getElementById('pause-icon');
+    const finishEarlyBtn = document.getElementById('finish-early-btn');
     const resetBtn = document.getElementById('reset-btn');
     
     const soundToggle = document.getElementById('sound-toggle');
@@ -95,6 +97,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const activeTaskPill = document.getElementById('active-task-pill');
     const activeTaskText = document.getElementById('active-task-text');
+
+    // DOM Elements - Quick Focus Summary (Main View)
+    const quickTodayTime = document.getElementById('quick-today-time');
+    const quickTodaySessions = document.getElementById('quick-today-sessions');
+    const quickWeekTime = document.getElementById('quick-week-time');
+    const quickWeekSessions = document.getElementById('quick-week-sessions');
+    const quickViewStatsBtn = document.getElementById('quick-view-stats-btn');
 
     // DOM Elements - Tasks
     const addTaskForm = document.getElementById('add-task-form');
@@ -106,12 +115,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const taskEmptyState = document.getElementById('task-empty-state');
 
     // DOM Elements - Analytics
+    const statTodayTime = document.getElementById('stat-today-time');
+    const statTodaySessions = document.getElementById('stat-today-sessions');
+    const statWeekTime = document.getElementById('stat-week-time');
+    const statWeekSessions = document.getElementById('stat-week-sessions');
     const statTotalTime = document.getElementById('stat-total-time');
     const statStreak = document.getElementById('stat-streak');
     const statCompletedPomo = document.getElementById('stat-completed-pomo');
+    const chartWeekRange = document.getElementById('chart-week-range');
     const barChartSvg = document.getElementById('analytics-bar-chart');
+    const historyFilterBtns = document.querySelectorAll('.filter-pill');
     const sessionHistoryList = document.getElementById('session-history-list');
     const historyEmpty = document.getElementById('history-empty');
+    const historyEmptyText = document.getElementById('history-empty-text');
 
     // DOM Elements - Ambient Soundscape
     const ambientMasterToggle = document.getElementById('ambient-master-toggle');
@@ -157,30 +173,40 @@ document.addEventListener('DOMContentLoaded', () => {
     // DASHBOARD VIEW NAVIGATION
     // ==========================================================================
 
-    dashNavBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const targetViewId = e.currentTarget.dataset.view;
+    function activateDashboardView(targetViewId) {
+        dashNavBtns.forEach(b => {
+            b.classList.toggle('active', b.dataset.view === targetViewId);
+        });
 
-            dashNavBtns.forEach(b => b.classList.remove('active'));
-            e.currentTarget.classList.add('active');
-
-            dashboardViews.forEach(view => {
-                if (view.id === targetViewId) {
-                    view.classList.remove('hidden');
-                    view.classList.add('active');
-                } else {
-                    view.classList.add('hidden');
-                    view.classList.remove('active');
-                }
-            });
-
-            if (targetViewId === 'view-timer') {
-                updateTabIndicator();
-            } else if (targetViewId === 'view-analytics') {
-                renderAnalytics();
+        dashboardViews.forEach(view => {
+            if (view.id === targetViewId) {
+                view.classList.remove('hidden');
+                view.classList.add('active');
+            } else {
+                view.classList.add('hidden');
+                view.classList.remove('active');
             }
         });
+
+        if (targetViewId === 'view-timer') {
+            updateTabIndicator();
+            renderAnalytics();
+        } else if (targetViewId === 'view-analytics') {
+            renderAnalytics();
+        }
+    }
+
+    dashNavBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            activateDashboardView(e.currentTarget.dataset.view);
+        });
     });
+
+    if (quickViewStatsBtn) {
+        quickViewStatsBtn.addEventListener('click', () => {
+            activateDashboardView('view-analytics');
+        });
+    }
 
     // ==========================================================================
     // TIMER ENGINE
@@ -237,6 +263,41 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
 
+    function getElapsedFocusMinutes() {
+        if (currentMode !== 'focus') return 0;
+        const elapsedSeconds = totalSeconds - remainingSeconds;
+        return Math.floor(elapsedSeconds / 60);
+    }
+
+    function promptToSavePartialFocus(actionName) {
+        const elapsedMins = getElapsedFocusMinutes();
+        if (elapsedMins >= 1) {
+            const activeTask = tasks.find(t => t.id === activeTaskId && !t.completed);
+            const taskName = activeTask ? activeTask.text : 'General Focus';
+            const shouldSave = confirm(
+                `You've focused for ${elapsedMins} minute${elapsedMins === 1 ? '' : 's'}. Would you like to record this in your focus history before ${actionName}?`
+            );
+            if (shouldSave) {
+                logAnalyticsSession(elapsedMins, taskName, true);
+            }
+        }
+    }
+
+    function finishFocusEarly() {
+        const elapsedMins = getElapsedFocusMinutes();
+        if (elapsedMins < 1) return;
+
+        pauseTimer();
+        playChime();
+
+        const activeTask = tasks.find(t => t.id === activeTaskId && !t.completed);
+        const taskName = activeTask ? activeTask.text : 'General Focus';
+        logAnalyticsSession(elapsedMins, taskName, true);
+
+        remainingSeconds = totalSeconds;
+        renderDisplay();
+    }
+
     function renderDisplay() {
         const timeStr = formatTime(remainingSeconds);
         timerReadout.textContent = timeStr;
@@ -249,12 +310,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const progressFraction = remainingSeconds / totalSeconds;
         const dashoffset = RING_PERIMETER * (1 - progressFraction);
         progressFill.style.strokeDashoffset = dashoffset;
+
+        if (finishEarlyBtn) {
+            const elapsedMins = getElapsedFocusMinutes();
+            finishEarlyBtn.classList.toggle('hidden', elapsedMins < 1);
+            if (elapsedMins >= 1) {
+                finishEarlyBtn.title = `Finish & log ${elapsedMins}m of focus`;
+            }
+        }
     }
 
-    function switchMode(modeKey) {
+    function switchMode(modeKey, askPartial = false) {
         if (!MODES[modeKey]) return;
 
         pauseTimer();
+
+        if (askPartial && currentMode === 'focus' && modeKey !== 'focus') {
+            promptToSavePartialFocus('switching modes');
+        }
 
         currentMode = modeKey;
         totalSeconds = MODES[currentMode].duration;
@@ -318,8 +391,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function resetTimer() {
+    function resetTimer(askPartial = false) {
         pauseTimer();
+        if (askPartial && currentMode === 'focus') {
+            promptToSavePartialFocus('resetting the timer');
+        }
         remainingSeconds = totalSeconds;
         renderDisplay();
     }
@@ -335,15 +411,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // Log Focus Session to Analytics
             const activeTask = tasks.find(t => t.id === activeTaskId);
             const taskName = activeTask ? activeTask.text : 'General Focus';
-            logAnalyticsSession(settings.focusDur, taskName);
+            logAnalyticsSession(settings.focusDur, taskName, false);
             
             if (completedSessions === 4) {
-                switchMode('longBreak');
+                switchMode('longBreak', false);
             } else {
-                switchMode('shortBreak');
+                switchMode('shortBreak', false);
             }
         } else {
-            switchMode('focus');
+            switchMode('focus', false);
         }
 
         if (settings.autoStartBreaks) {
@@ -516,8 +592,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================================================
-    // ANALYTICS & STATS ENGINE
+    // ANALYTICS & STATS ENGINE (LOCAL TIMEZONE, TODAY & MON-SUN WEEK)
     // ==========================================================================
+
+    function getLocalDateKey(dateInput = new Date()) {
+        const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function getCurrentWeekInfo(referenceDate = new Date()) {
+        const now = new Date(referenceDate);
+        const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
+        const diffToMonday = (dayOfWeek + 6) % 7; // Monday = 0, ..., Sunday = 6
+
+        const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday, 0, 0, 0, 0);
+        const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6, 23, 59, 59, 999);
+
+        const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const todayKey = getLocalDateKey(now);
+        const days = [];
+        const weekDateKeys = new Set();
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+            const key = getLocalDateKey(d);
+            weekDateKeys.add(key);
+            days.push({
+                date: d,
+                dateKey: key,
+                dayLabel: dayLabels[i],
+                isToday: key === todayKey
+            });
+        }
+
+        const fmtOpts = { month: 'short', day: 'numeric' };
+        const rangeLabel = `${monday.toLocaleDateString('en-US', fmtOpts)} – ${sunday.toLocaleDateString('en-US', fmtOpts)}`;
+
+        return { monday, sunday, days, weekDateKeys, todayKey, rangeLabel };
+    }
+
+    function formatDuration(totalMinutes) {
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+        if (hours > 0) return `${hours}h`;
+        return `${mins}m`;
+    }
+
+    function formatSessionCount(count) {
+        return `${count} session${count === 1 ? '' : 's'}`;
+    }
 
     function loadAnalytics() {
         try {
@@ -536,12 +663,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function logAnalyticsSession(durationMins, taskText) {
+    function logAnalyticsSession(durationMins, taskText, isPartial = false) {
         const newSession = {
             id: 'sess_' + Date.now(),
             timestamp: Date.now(),
             duration: durationMins,
-            taskText: taskText || 'Focus Session'
+            taskText: taskText || 'Focus Session',
+            partial: Boolean(isPartial)
         };
 
         analyticsData.sessions.unshift(newSession); // Newest first
@@ -549,60 +677,144 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAnalytics();
     }
 
+    function deleteAnalyticsSession(sessionId) {
+        analyticsData.sessions = (analyticsData.sessions || []).filter(s => s.id !== sessionId);
+        saveAnalytics();
+        renderAnalytics();
+    }
+
+    function formatSessionTimestamp(timestamp, todayKey) {
+        const d = new Date(timestamp);
+        const sessionDateKey = getLocalDateKey(d);
+        const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+        if (sessionDateKey === todayKey) {
+            return `Today &bull; ${timeStr}`;
+        }
+        const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        return `${dateStr} &bull; ${timeStr}`;
+    }
+
     function renderAnalytics() {
         const sessions = analyticsData.sessions || [];
+        const weekInfo = getCurrentWeekInfo();
+        const { todayKey, weekDateKeys } = weekInfo;
+
+        const todaySessions = sessions.filter(s => getLocalDateKey(s.timestamp) === todayKey);
+        const todayMinutes = todaySessions.reduce((acc, s) => acc + (s.duration || 0), 0);
+
+        const weekSessions = sessions.filter(s => weekDateKeys.has(getLocalDateKey(s.timestamp)));
+        const weekMinutes = weekSessions.reduce((acc, s) => acc + (s.duration || 0), 0);
+
         const totalMinutes = sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
         const totalPomodoros = sessions.length;
 
-        // Stat Card Values
-        const hours = Math.floor(totalMinutes / 60);
-        const mins = totalMinutes % 60;
-        statTotalTime.textContent = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-        statCompletedPomo.textContent = totalPomodoros;
+        // Update Main View Quick Focus Summary Card
+        if (quickTodayTime) quickTodayTime.textContent = formatDuration(todayMinutes);
+        if (quickTodaySessions) quickTodaySessions.textContent = formatSessionCount(todaySessions.length);
+        if (quickWeekTime) quickWeekTime.textContent = formatDuration(weekMinutes);
+        if (quickWeekSessions) quickWeekSessions.textContent = formatSessionCount(weekSessions.length);
 
-        // Streak Calculation
+        // Update Stats View Summary Cards
+        if (statTodayTime) statTodayTime.textContent = formatDuration(todayMinutes);
+        if (statTodaySessions) statTodaySessions.textContent = formatSessionCount(todaySessions.length);
+        if (statWeekTime) statWeekTime.textContent = formatDuration(weekMinutes);
+        if (statWeekSessions) statWeekSessions.textContent = formatSessionCount(weekSessions.length);
+
+        statTotalTime.textContent = formatDuration(totalMinutes);
+        statCompletedPomo.textContent = formatSessionCount(totalPomodoros);
+
+        // Streak Calculation (Local Timezone)
         const streakDays = calculateStreak(sessions);
         statStreak.textContent = `${streakDays} Day${streakDays === 1 ? '' : 's'}`;
 
-        // Render 7-Day Bar Chart
-        renderBarChart(sessions);
+        // Render Mon-Sun Weekly Bar Chart
+        if (chartWeekRange) {
+            chartWeekRange.textContent = weekInfo.rangeLabel;
+        }
+        renderBarChart(sessions, weekInfo);
 
-        // Render Session History
+        // Filter & Render Session History
+        let filteredSessions = sessions;
+        if (currentHistoryFilter === 'today') {
+            filteredSessions = todaySessions;
+        } else if (currentHistoryFilter === 'week') {
+            filteredSessions = weekSessions;
+        }
+
         sessionHistoryList.innerHTML = '';
-        historyEmpty.classList.toggle('hidden', sessions.length > 0);
+        historyEmpty.classList.toggle('hidden', filteredSessions.length > 0);
 
-        sessions.slice(0, 8).forEach(s => {
+        if (historyEmptyText && filteredSessions.length === 0) {
+            if (currentHistoryFilter === 'today') {
+                historyEmptyText.textContent = 'No focus sessions recorded for today yet. Start the timer to log your progress!';
+            } else if (currentHistoryFilter === 'week') {
+                historyEmptyText.textContent = 'No focus sessions recorded this week (Mon–Sun) yet. Complete a session to begin!';
+            } else {
+                historyEmptyText.textContent = 'No completed sessions logged yet. Complete a focus countdown to track your progress!';
+            }
+        }
+
+        filteredSessions.slice(0, 30).forEach(s => {
             const li = document.createElement('li');
             li.className = 'history-item';
-            const dateStr = new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const metaStr = formatSessionTimestamp(s.timestamp, todayKey);
+            const partialBadge = s.partial ? `<span class="history-badge-partial">Partial</span>` : '';
+
             li.innerHTML = `
-                <span class="history-task">🎯 ${escapeHtml(s.taskText)}</span>
-                <span class="history-time">${s.duration} min &bull; ${dateStr}</span>
+                <div class="history-item-main">
+                    <div class="history-task-row">
+                        <span class="history-task">🎯 ${escapeHtml(s.taskText)}</span>
+                        ${partialBadge}
+                    </div>
+                    <span class="history-meta">${metaStr}</span>
+                </div>
+                <div class="history-item-right">
+                    <span class="history-duration-pill">${s.duration}m</span>
+                    <button type="button" class="history-delete-btn" title="Delete session record" aria-label="Delete session record">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
             `;
+
+            li.querySelector('.history-delete-btn').addEventListener('click', () => {
+                deleteAnalyticsSession(s.id);
+            });
+
             sessionHistoryList.appendChild(li);
         });
     }
+
+    historyFilterBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            currentHistoryFilter = e.currentTarget.dataset.filter;
+            historyFilterBtns.forEach(b => b.classList.toggle('active', b === e.currentTarget));
+            renderAnalytics();
+        });
+    });
 
     function calculateStreak(sessions) {
         if (sessions.length === 0) return 0;
         const days = new Set();
         sessions.forEach(s => {
-            const dayKey = new Date(s.timestamp).toISOString().split('T')[0];
-            days.add(dayKey);
+            days.add(getLocalDateKey(s.timestamp));
         });
 
         let streak = 0;
-        let checkDate = new Date();
+        const checkDate = new Date();
 
         while (true) {
-            const key = checkDate.toISOString().split('T')[0];
+            const key = getLocalDateKey(checkDate);
             if (days.has(key)) {
                 streak++;
                 checkDate.setDate(checkDate.getDate() - 1);
             } else if (streak === 0) {
                 // Check if yesterday had sessions if today hasn't logged one yet
                 checkDate.setDate(checkDate.getDate() - 1);
-                const prevKey = checkDate.toISOString().split('T')[0];
+                const prevKey = getLocalDateKey(checkDate);
                 if (days.has(prevKey)) {
                     streak++;
                     checkDate.setDate(checkDate.getDate() - 1);
@@ -616,36 +828,38 @@ document.addEventListener('DOMContentLoaded', () => {
         return streak;
     }
 
-    function renderBarChart(sessions) {
+    function renderBarChart(sessions, weekInfo) {
         barChartSvg.innerHTML = '';
-        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const today = new Date();
-        const past7Days = [];
-
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(d.getDate() - i);
-            const dateKey = d.toISOString().split('T')[0];
-            const dayLabel = dayNames[d.getDay()];
-
-            // Minutes for this date
+        const weekDays = weekInfo.days.map(d => {
             const dayMins = sessions
-                .filter(s => new Date(s.timestamp).toISOString().split('T')[0] === dateKey)
-                .reduce((acc, s) => acc + s.duration, 0);
+                .filter(s => getLocalDateKey(s.timestamp) === d.dateKey)
+                .reduce((acc, s) => acc + (s.duration || 0), 0);
+            return { ...d, mins: dayMins };
+        });
 
-            past7Days.push({ dateKey, dayLabel, mins: dayMins });
-        }
-
-        const maxMins = Math.max(60, ...past7Days.map(d => d.mins));
+        const maxMins = Math.max(60, ...weekDays.map(d => d.mins));
         const chartWidth = 360;
-        const chartHeight = 160;
+        const chartHeight = 165;
         const barWidth = 32;
         const spacing = (chartWidth - (barWidth * 7)) / 8;
 
-        past7Days.forEach((d, idx) => {
+        weekDays.forEach((d, idx) => {
             const x = spacing + idx * (barWidth + spacing);
             const barH = (d.mins / maxMins) * 90;
-            const y = chartHeight - 35 - barH;
+            const y = chartHeight - 38 - barH;
+
+            // Highlight backdrop for Today
+            if (d.isToday) {
+                const todayBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                todayBg.setAttribute('x', x - 4);
+                todayBg.setAttribute('y', 8);
+                todayBg.setAttribute('width', barWidth + 8);
+                todayBg.setAttribute('height', chartHeight - 14);
+                todayBg.setAttribute('rx', '8');
+                todayBg.setAttribute('fill', 'var(--accent-light)');
+                todayBg.setAttribute('opacity', '0.55');
+                barChartSvg.appendChild(todayBg);
+            }
 
             // Bar Element
             const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -673,12 +887,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Day Label below bar
             const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             labelText.setAttribute('x', x + barWidth / 2);
-            labelText.setAttribute('y', chartHeight - 12);
+            labelText.setAttribute('y', chartHeight - 14);
             labelText.setAttribute('text-anchor', 'middle');
             labelText.setAttribute('font-size', '11');
-            labelText.setAttribute('font-weight', '600');
-            labelText.setAttribute('fill', 'var(--text-muted)');
-            labelText.textContent = d.dayLabel;
+            labelText.setAttribute('font-weight', d.isToday ? '700' : '600');
+            labelText.setAttribute('fill', d.isToday ? 'var(--accent-color)' : 'var(--text-muted)');
+            labelText.textContent = d.isToday ? `${d.dayLabel}•` : d.dayLabel;
             barChartSvg.appendChild(labelText);
         });
     }
@@ -916,12 +1130,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tabBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            switchMode(e.currentTarget.dataset.mode);
+            switchMode(e.currentTarget.dataset.mode, true);
         });
     });
 
     startPauseBtn.addEventListener('click', toggleTimer);
-    resetBtn.addEventListener('click', resetTimer);
+    if (finishEarlyBtn) {
+        finishEarlyBtn.addEventListener('click', finishFocusEarly);
+    }
+    resetBtn.addEventListener('click', () => resetTimer(true));
 
     soundToggle.addEventListener('click', () => {
         soundEnabled = !soundEnabled;
@@ -938,7 +1155,7 @@ document.addEventListener('DOMContentLoaded', () => {
             toggleTimer();
         } else if (e.code === 'KeyR') {
             e.preventDefault();
-            resetTimer();
+            resetTimer(true);
         }
     });
 

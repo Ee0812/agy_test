@@ -104,6 +104,12 @@
                         </svg>
                         <span id="start-pause-text">Start</span>
                     </button>
+
+                    <button id="finish-early-btn" class="btn btn-secondary hidden" aria-label="Log Elapsed Focus Time" title="Finish & log elapsed focus minutes">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
                     
                     <button id="reset-btn" class="btn btn-secondary" aria-label="Reset Timer" title="Reset timer">
                         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -113,6 +119,38 @@
                     </button>
                 </div>
             </main>
+
+            <!-- Quick Focus Summary Card (Today & This Week) -->
+            <section class="focus-summary-card" aria-label="Focus Summary">
+                <div class="focus-summary-header">
+                    <span class="focus-summary-title">Focus Progress</span>
+                    <button id="quick-view-stats-btn" class="text-button">View Details &rarr;</button>
+                </div>
+                <div class="focus-summary-grid">
+                    <div class="focus-summary-item">
+                        <span class="summary-item-icon">☀️</span>
+                        <div class="summary-item-content">
+                            <span class="summary-item-label">Today's Focus</span>
+                            <div class="summary-item-metrics">
+                                <span id="quick-today-time" class="summary-item-value">0m</span>
+                                <span class="summary-item-dot">&bull;</span>
+                                <span id="quick-today-sessions" class="summary-item-sub">0 sessions</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="focus-summary-item">
+                        <span class="summary-item-icon">📅</span>
+                        <div class="summary-item-content">
+                            <span class="summary-item-label">This Week</span>
+                            <div class="summary-item-metrics">
+                                <span id="quick-week-time" class="summary-item-value">0m</span>
+                                <span class="summary-item-dot">&bull;</span>
+                                <span id="quick-week-sessions" class="summary-item-sub">0 sessions</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             <!-- Task Tracker Section -->
             <section class="task-card">
@@ -152,51 +190,72 @@
             <section class="analytics-card">
                 <div class="card-title-bar">
                     <h2>Focus Analytics</h2>
-                    <span class="subtitle">Your productivity insights</span>
+                    <span class="subtitle">Track your daily and weekly focus progress</span>
                 </div>
 
-                <!-- Stats Summary Cards Grid -->
+                <!-- Stats Summary Cards Grid (2x2) -->
                 <div class="stats-grid">
-                    <div class="stat-card">
-                        <span class="stat-icon">⏱️</span>
+                    <div class="stat-card stat-card-highlight">
+                        <span class="stat-icon">☀️</span>
                         <div class="stat-info">
-                            <span id="stat-total-time" class="stat-value">0m</span>
-                            <span class="stat-label">Total Focus Time</span>
+                            <span class="stat-label">Today's Focus</span>
+                            <span id="stat-today-time" class="stat-value">0m</span>
+                            <span id="stat-today-sessions" class="stat-sub">0 sessions</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-card-highlight">
+                        <span class="stat-icon">📅</span>
+                        <div class="stat-info">
+                            <span class="stat-label">This Week</span>
+                            <span id="stat-week-time" class="stat-value">0m</span>
+                            <span id="stat-week-sessions" class="stat-sub">0 sessions</span>
                         </div>
                     </div>
                     <div class="stat-card">
                         <span class="stat-icon">🔥</span>
                         <div class="stat-info">
-                            <span id="stat-streak" class="stat-value">0 Days</span>
                             <span class="stat-label">Current Streak</span>
+                            <span id="stat-streak" class="stat-value">0 Days</span>
+                            <span class="stat-sub">Consecutive days</span>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <span class="stat-icon">🎯</span>
+                        <span class="stat-icon">🏆</span>
                         <div class="stat-info">
-                            <span id="stat-completed-pomo" class="stat-value">0</span>
-                            <span class="stat-label">Completed Sessions</span>
+                            <span class="stat-label">All-Time Total</span>
+                            <span id="stat-total-time" class="stat-value">0m</span>
+                            <span id="stat-completed-pomo" class="stat-sub">0 sessions</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- 7-Day Focus Time Chart -->
+                <!-- Weekly Focus Time Chart (Mon - Sun) -->
                 <div class="chart-section">
-                    <h3>7-Day Focus History (Minutes)</h3>
+                    <div class="section-header-row">
+                        <h3>This Week's Focus (Minutes)</h3>
+                        <span id="chart-week-range" class="chart-week-badge">Mon – Sun</span>
+                    </div>
                     <div class="chart-container">
-                        <svg id="analytics-bar-chart" class="bar-chart-svg" viewBox="0 0 360 160"></svg>
+                        <svg id="analytics-bar-chart" class="bar-chart-svg" viewBox="0 0 360 165"></svg>
                     </div>
                 </div>
 
                 <!-- Session History Log -->
                 <div class="history-section">
-                    <h3>Recent Focus Sessions</h3>
+                    <div class="section-header-row">
+                        <h3>Focus History</h3>
+                        <div class="history-filter-tabs" role="tablist" aria-label="Filter Focus History">
+                            <button type="button" class="filter-pill active" data-filter="today">Today</button>
+                            <button type="button" class="filter-pill" data-filter="week">This Week</button>
+                            <button type="button" class="filter-pill" data-filter="all">All</button>
+                        </div>
+                    </div>
                     <ul id="session-history-list" class="history-list">
                         <!-- Dynamic History Rows -->
                     </ul>
                     <div id="history-empty" class="task-empty-state">
                         <span class="empty-icon">📈</span>
-                        <p>No completed sessions logged yet. Complete a focus countdown to track your progress!</p>
+                        <p id="history-empty-text">No focus sessions recorded for today yet. Start the timer to log your progress!</p>
                     </div>
                 </div>
             </section>

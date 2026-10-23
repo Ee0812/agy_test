@@ -648,6 +648,92 @@ body {
     font-size: 1.6rem;
 }
 
+/* Quick Focus Summary Card (Main View) */
+.focus-summary-card {
+    width: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: var(--radius-lg);
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 20px 40px var(--shadow-color);
+    transition: var(--transition-smooth);
+}
+
+.focus-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.focus-summary-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.focus-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.focus-summary-item {
+    background: var(--bg-secondary);
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: var(--transition-smooth);
+}
+
+.summary-item-icon {
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.summary-item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.summary-item-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.summary-item-metrics {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.summary-item-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.summary-item-dot {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.summary-item-sub {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent-color);
+}
+
 /* ==========================================================================
    VIEW 2: ANALYTICS & STATS STYLES
    ========================================================================== */
@@ -684,38 +770,53 @@ body {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
 }
 
 .stat-card {
     background: var(--bg-secondary);
-    padding: 12px 10px;
+    padding: 14px 14px;
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    border: 1.5px solid transparent;
+    transition: var(--transition-smooth);
+}
+
+.stat-card-highlight {
+    border-color: var(--accent-light);
+    background: var(--bg-secondary);
 }
 
 .stat-icon {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
+    flex-shrink: 0;
 }
 
 .stat-info {
     display: flex;
     flex-direction: column;
+    gap: 1px;
+}
+
+.stat-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
 }
 
 .stat-value {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 700;
     color: var(--text-dark);
 }
 
-.stat-label {
-    font-size: 0.7rem;
+.stat-sub {
+    font-size: 0.72rem;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--accent-color);
 }
 
 .chart-section, .history-section {
@@ -724,10 +825,27 @@ body {
     gap: 10px;
 }
 
+.section-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .chart-section h3, .history-section h3 {
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--text-dark);
+}
+
+.chart-week-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent-color);
+    background: var(--bg-secondary);
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
 }
 
 .chart-container {
@@ -739,7 +857,37 @@ body {
 
 .bar-chart-svg {
     width: 100%;
-    height: 140px;
+    height: 145px;
+}
+
+.history-filter-tabs {
+    display: flex;
+    background: var(--bg-secondary);
+    padding: 3px;
+    border-radius: var(--radius-full);
+    gap: 2px;
+}
+
+.filter-pill {
+    background: none;
+    border: none;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-family: var(--font-family);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.filter-pill:hover {
+    color: var(--text-dark);
+}
+
+.filter-pill.active {
+    background: var(--accent-color);
+    color: #FFFFFF;
 }
 
 .history-list {
@@ -747,7 +895,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 180px;
+    max-height: 220px;
     overflow-y: auto;
 }
 
@@ -755,20 +903,83 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
     background: var(--bg-secondary);
     padding: 10px 12px;
     border-radius: var(--radius-sm);
     font-size: 0.85rem;
 }
 
+.history-item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.history-task-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .history-task {
     font-weight: 600;
     color: var(--text-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.history-time {
-    font-size: 0.75rem;
+.history-badge-partial {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: var(--accent-light);
+    color: var(--accent-color);
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+
+.history-meta {
+    font-size: 0.72rem;
     color: var(--text-muted);
+}
+
+.history-item-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.history-duration-pill {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--accent-color);
+    background: var(--card-bg);
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+}
+
+.history-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.history-delete-btn:hover {
+    color: #E53E3E;
+    background: rgba(229, 62, 62, 0.1);
 }
 
 /* ==========================================================================
